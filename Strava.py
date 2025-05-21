@@ -4,20 +4,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-STRAVA_CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
-STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
-STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
-
-def refresh_access_token():
-    url = "https://www.strava.com/oauth/token"
-    response = requests.post(url, data={
-        "client_id": STRAVA_CLIENT_ID,
-        "client_secret": STRAVA_CLIENT_SECRET,
-        "grant_type": "refresh_token",
-        "refresh_token": STRAVA_REFRESH_TOKEN,
-    })
+def get_activities():
+    token = os.getenv("STRAVA_ACCESS_TOKEN")
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+    response = requests.get(
+        "https://www.strava.com/api/v3/athlete/activities?per_page=5",
+        headers=headers
+    )
     response.raise_for_status()
-    return response.json()["access_token"]
+    return response.json()
 
 def get_activities(access_token, per_page=5):
     url = f"https://www.strava.com/api/v3/athlete/activities"
