@@ -17,7 +17,7 @@ def refresh_access_token():
         'refresh_token': REFRESH_TOKEN
     })
     response.raise_for_status()
-    new_token = response.json()['ACCESS_TOKEN']
+    new_token = response.json()['access_token']
     print("Refreshed token:", new_token)
     return new_token
 
