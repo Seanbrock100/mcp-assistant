@@ -23,7 +23,7 @@ def refresh_access_token():
 
 def get_activities(token):
     url = "https://www.strava.com/api/v3/athlete/activities?per_page=5"
-    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
+    headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
@@ -32,22 +32,8 @@ if __name__ == "__main__":
     try:
         activities = get_activities(ACCESS_TOKEN)
     except requests.exceptions.HTTPError as e:
-        print("Access token likely expired, refreshing...")
+        print("Access token likely expired or invalid, refreshing...")
         ACCESS_TOKEN = refresh_access_token()
         activities = get_activities(ACCESS_TOKEN)
 
-    print("Latest activities:")
-    for activity in activities:
-        print(f"- {activity['name']} ({activity['distance']/1000:.2f} km, {activity['moving_time']//60} min)")
-def get_activities(access_token, per_page=5):
-    url = f"https://www.strava.com/api/v3/athlete/activities"
-    headers = {"Authorization": f"Bearer {access_token}"}
-    response = requests.get(url, headers=headers, params={"per_page": per_page})
-    response.raise_for_status()
-    return response.json()
-
-if __name__ == "__main__":
-    token = refresh_access_token()
-    activities = get_activities(token)
-    for act in activities:
-        print(f"{act['start_date']} - {act['name']} - {act['distance'] / 1000:.2f} km")
+    print("Recent activities:", activities)
