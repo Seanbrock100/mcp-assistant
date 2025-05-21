@@ -17,13 +17,13 @@ def refresh_access_token():
         'refresh_token': REFRESH_TOKEN
     })
     response.raise_for_status()
-    new_token = response.json()['access_token']
+    new_token = response.json()['ACCESS_TOKEN']
     print("Refreshed token:", new_token)
     return new_token
 
 def get_activities(token):
     url = "https://www.strava.com/api/v3/athlete/activities?per_page=5"
-    headers = {"Authorization": f"Bearer {access_token}"}
+    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.json()
