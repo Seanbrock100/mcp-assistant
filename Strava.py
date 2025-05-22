@@ -1,6 +1,18 @@
 import os
 import requests
 from dotenv import load_dotenv
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Debug: print loaded tokens
+print("=== Loaded tokens from .env ===")
+print("STRAVA_CLIENT_ID:", os.getenv("STRAVA_CLIENT_ID"))
+print("STRAVA_CLIENT_SECRET:", os.getenv("STRAVA_CLIENT_SECRET"))
+print("STRAVA_ACCESS_TOKEN:", os.getenv("STRAVA_ACCESS_TOKEN"))
+print("STRAVA_REFRESH_TOKEN:", os.getenv("STRAVA_REFRESH_TOKEN"))
+print("================================")
 
 # Load .env variables
 load_dotenv()
