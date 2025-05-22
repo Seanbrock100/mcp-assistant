@@ -1,82 +1,68 @@
 import os
+import requests
+import json
 from dotenv import load_dotenv
-from stravalib.client import Client
 
-ENV_FILE = ".env"
+load_dotenv()
 
-def update_env(tokens):
-    """Update .env with new tokens."""
-    try:
-        with open(ENV_FILE, "r") as file:
-            lines = file.readlines()
+CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
+CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
+TOKEN_FILE = "tokens.json"
 
-        with open(ENV_FILE, "w") as file:
-            for line in lines:
-                if line.startswith("STRAVA_ACCESS_TOKEN="):
-                    file.write(f'STRAVA_ACCESS_TOKEN={tokens["access_token"]}\n')
-                elif line.startswith("STRAVA_REFRESH_TOKEN="):
-                    file.write(f'STRAVA_REFRESH_TOKEN={tokens["refresh_token"]}\n')
-                else:
-                    file.write(line)
-    except Exception as e:
-        print("Failed to update .env file:", e)
+def save_tokens(data):
+    with open(TOKEN_FILE, "w") as f:
+        json.dump(data, f)
 
-def print_tokens(label, token_data):
-    print(f"\n{label} Tokens:")
-    for k, v in token_data.items():
-        if 'token' in k:
-            print(f"{k}: {v}")
+def load_tokens():
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def refresh_access_token(refresh_token):
+    print("Refreshing access token...")
+    response = requests.post("https://www.strava.com/api/v3/oauth/token", data={
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token
+    })
+    response.raise_for_status()
+    new_tokens = response.json()
+    save_tokens(new_tokens)
+    return new_tokens
+
+def get_athlete_profile(access_token):
+    print("Fetching athlete profile...")
+    response = requests.get("https://www.strava.com/api/v3/athlete", headers={
+        "Authorization": f"Bearer {access_token}"
+    })
+    if response.status_code == 401:
+        print("Access token invalid or expired. Attempting to refresh...")
+        raise Exception("TokenExpired")
+    response.raise_for_status()
+    return response.json()
 
 def main():
-    load_dotenv()
+    tokens = load_tokens()
+    access_token = tokens.get("access_token")
+    refresh_token = tokens.get("refresh_token")
 
-    client_id = os.getenv("STRAVA_CLIENT_ID")
-    client_secret = os.getenv("STRAVA_CLIENT_SECRET")
-    access_token = os.getenv("STRAVA_ACCESS_TOKEN")
-    refresh_token = os.getenv("STRAVA_REFRESH_TOKEN")
-
-    # Validate environment variables
-    if not all([client_id, client_secret, access_token, refresh_token]):
-        print("ERROR: Missing required credentials in .env file.")
-        print("Ensure STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_ACCESS_TOKEN, and STRAVA_REFRESH_TOKEN are set.")
+    if not access_token or not refresh_token:
+        print("Error: Missing tokens in tokens.json.")
         return
 
-    token_data = {
-        "STRAVA_ACCESS_TOKEN": access_token,
-        "STRAVA_REFRESH_TOKEN": refresh_token
-    }
-    print_tokens("Loaded", token_data)
-
-    client = Client()
-    client.access_token = access_token
-
     try:
-        athlete = client.get_athlete()
-        print(f"\nAuthenticated as: {athlete.firstname} {athlete.lastname}")
+        athlete = get_athlete_profile(access_token)
+        print("Athlete:", json.dumps(athlete, indent=2))
     except Exception as e:
-        print("\nAccess token invalid or expired. Attempting refresh...")
-        try:
-            token_response = client.refresh_access_token(
-                client_id=client_id,
-                client_secret=client_secret,
-                refresh_token=refresh_token
-            )
-            client.access_token = token_response['access_token']
-            update_env(token_response)
-            print_tokens("Refreshed", token_response)
-        except Exception as refresh_error:
-            print("ERROR: Failed to refresh token.")
-            print(refresh_error)
-            return
-
-    try:
-        print("\nFetching latest activities...")
-        activities = client.get_activities(limit=5)
-        for activity in activities:
-            print(f"- {activity.name} on {activity.start_date_local} ({activity.distance} m)")
-    except Exception as fetch_error:
-        print("ERROR: Failed to fetch activities.")
-        print(fetch_error)
+        if str(e) == "TokenExpired":
+            tokens = refresh_access_token(refresh_token)
+            access_token = tokens["access_token"]
+            athlete = get_athlete_profile(access_token)
+            print("Athlete (after refresh):", json.dumps(athlete, indent=2))
+        else:
+            print("Unhandled error:", e)
 
 if __name__ == "__main__":
     main()
