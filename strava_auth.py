@@ -1,29 +1,55 @@
 import os
-from dotenv import load_dotenv
 from stravalib.client import Client
+from dotenv import load_dotenv
 
-# Load environment variables from .env
-load_dotenv()
+ENV_FILE = ".env"
 
-# Retrieve credentials from the environment
-ACCESS_TOKEN = os.getenv("STRAVA_ACCESS_TOKEN")
+def update_env(tokens):
+    lines = []
+    with open(ENV_FILE, "r") as file:
+        for line in file:
+            if line.startswith("STRAVA_ACCESS_TOKEN="):
+                lines.append(f'STRAVA_ACCESS_TOKEN={tokens["access_token"]}\n')
+            elif line.startswith("STRAVA_REFRESH_TOKEN="):
+                lines.append(f'STRAVA_REFRESH_TOKEN={tokens["refresh_token"]}\n')
+            elif line.strip() != "":
+                lines.append(line)
+    with open(ENV_FILE, "w") as file:
+        file.writelines(lines)
 
-# Ensure the token exists
-if not ACCESS_TOKEN:
-    print("Error: STRAVA_ACCESS_TOKEN is missing from environment.")
-    exit(1)
+def main():
+    load_dotenv()
 
-# Initialize the Strava client
-client = Client()
-client.access_token = ACCESS_TOKEN
+    client_id = os.getenv("STRAVA_CLIENT_ID")
+    client_secret = os.getenv("STRAVA_CLIENT_SECRET")
+    refresh_token = os.getenv("STRAVA_REFRESH_TOKEN")
 
-try:
-    print("Fetching latest activities from Strava...")
-    activities = client.get_activities(limit=5)
+    if not all([client_id, client_secret, refresh_token]):
+        print("Missing one or more required .env variables.")
+        return
 
-    print("\nRecent Activities:")
-    for activity in activities:
-        print(f"- {activity.name} | {activity.start_date} | {activity.distance}m")
+    client = Client()
+    
+    try:
+        print("Refreshing tokens...")
+        token_response = client.refresh_access_token(
+            client_id=client_id,
+            client_secret=client_secret,
+            refresh_token=refresh_token
+        )
 
-except Exception as e:
-    print(f"Error while fetching activities: {e}")
+        # Save updated tokens back to .env
+        update_env(token_response)
+
+        client.access_token = token_response["access_token"]
+
+        print("Fetching latest activities from Strava...")
+        activities = client.get_activities(limit=5)
+        for activity in activities:
+            print(f"{activity.name} on {activity.start_date_local} - {activity.distance} m")
+
+    except Exception as e:
+        print("Failed to fetch activities:", str(e))
+
+if __name__ == "__main__":
+    main()
