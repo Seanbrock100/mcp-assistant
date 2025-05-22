@@ -8,28 +8,38 @@ from dotenv import load_dotenv
 import datetime
 import os
 
-# Load credentials from .env file
+# Load credentials from .env
 load_dotenv()
-email = os.getenv("GARMIN_USERNAME")
-password = os.getenv("GARMIN_PASSWORD")
+EMAIL = os.getenv("GARMIN_EMAIL")
+PASSWORD = os.getenv("GARMIN_PASSWORD")
 
 try:
-    client = Garmin(email, password)
+    # Authenticate
+    client = Garmin(EMAIL, PASSWORD)
     client.login()
+    print("Login successful.")
 
-    today = datetime.date.today()
+    today = datetime.date.today().isoformat()
 
-    # Get today’s summary data
-    daily_summary = client.get_stats(today)
-    print("Daily Summary:", daily_summary)
-
-    # Get latest activity
+    # Fetch data
     activities = client.get_activities(0, 1)
-    print("Most Recent Activity:", activities[0])
+    stats = client.get_stats(today)
+    steps = client.get_steps_data(today)
+
+    print("\nLatest Activity:")
+    print(activities[0])
+
+    print("\nDaily Summary:")
+    print(stats)
+
+    print("\nSteps:")
+    print(steps)
 
 except GarminConnectAuthenticationError:
-    print("Authentication error: Check your Garmin username/password.")
+    print("Authentication failed: Invalid credentials.")
 except GarminConnectConnectionError:
-    print("Connection error: Could not connect to Garmin.")
+    print("Connection error.")
 except GarminConnectTooManyRequestsError:
-    print("Rate limit exceeded: Too many requests to Garmin API.")
+    print("Rate limit hit.")
+except Exception as e:
+    print(f"Unexpected error: {e}")
