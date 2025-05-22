@@ -7,7 +7,6 @@ load_dotenv()
 CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
 CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
 REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
-ACCESS_TOKEN = os.getenv("STRAVA_ACCESS_TOKEN")
 
 def refresh_access_token():
     response = requests.post("https://www.strava.com/api/v3/oauth/token", data={
@@ -29,11 +28,11 @@ def get_activities(token):
     return response.json()
 
 if __name__ == "__main__":
+    access_token = refresh_access_token()  # always refresh for now
     try:
-        activities = get_activities(ACCESS_TOKEN)
+        activities = get_activities(access_token)
+        print("Recent activities:")
+        for act in activities:
+            print(f"- {act['name']} ({act['distance']}m)")
     except requests.exceptions.HTTPError as e:
-        print("Access token likely expired or invalid, refreshing...")
-        ACCESS_TOKEN = refresh_access_token()
-        activities = get_activities(ACCESS_TOKEN)
-
-    print("Recent activities:", activities)
+        print("Failed to get activities:", e)
