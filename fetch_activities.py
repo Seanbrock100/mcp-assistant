@@ -1,38 +1,39 @@
-from garminconnect import Garmin
-from dotenv import load_dotenv
-import os
 import json
+import datetime
+from garminconnect import Garmin
 
-load_dotenv()
+# Assume authentication done
+client = Garmin("your_email", "your_password")
+client.login()
 
-EMAIL = os.getenv("GARMIN_EMAIL")
-PASSWORD = os.getenv("GARMIN_PASSWORD")
+# Fetch recent activities
+activities = client.get_activities(0, 100)  # Fetch more if needed
 
+extracted = []
+for a in activities:
+    extracted.append({
+        "start": a.get("startTimeLocal"),
+        "type": a.get("activityType", {}).get("typeKey"),
+        "name": a.get("activityName"),
+        "distance_m": a.get("distance"),
+        "duration_s": a.get("duration"),
+        "average_pace_min_per_km": round((a.get("duration") / (a.get("distance") / 1000)) / 60, 2) if a.get("distance") else None,
+        "averageHR": a.get("averageHR"),
+        "maxHR": a.get("maxHR"),
+        "vo2max": a.get("vO2MaxValue"),
+        "calories": a.get("activeKilocalories")
+    })
+
+# Merge with history
 try:
-    client = Garmin(EMAIL, PASSWORD)
-    client.login()
-    print("Login successful.")
+    with open("run_history.json", "r") as f:
+        history = json.load(f)
+except FileNotFoundError:
+    history = []
 
-    activities = client.get_activities(0, 30)  # fetch 30 most recent
+existing_starts = {a["start"] for a in history}
+combined = history + [a for a in extracted if a["start"] not in existing_starts]
+combined.sort(key=lambda x: x["start"])
 
-    extracted = []
-    for a in activities:
-        extracted.append({
-            "start": a.get("startTimeLocal"),
-            "type": a.get("activityType", {}).get("typeKey"),
-            "name": a.get("activityName"),
-            "distance_m": a.get("distance"),
-            "duration_s": a.get("duration"),
-            "averageHR": a.get("averageHR"),
-            "maxHR": a.get("maxHR"),
-            "vo2max": a.get("vO2MaxValue"),
-            "calories": a.get("activeKilocalories")
-        })
-
-    with open("recent_activities.json", "w") as f:
-        json.dump(extracted, f, indent=2)
-
-    print("Saved to recent_activities.json")
-
-except Exception as e:
-    print("Error fetching Garmin activities:", e)
+with open("run_history.json", "w") as f:
+    json.dump(combined, f, indent=2)
