@@ -4,52 +4,47 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
-
-# Initialise OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ---- Load Daily Summary Data (unchanged) ----
+# Load last 14 days of wellness data
 try:
-    with open("daily_summary.json", "r") as f:
+    with open("wellness_history.json", "r") as f:
         all_days = json.load(f)
+except:
+    all_days = []
 
-    # Reduce to recent 14 days and trim
-    trimmed_data = []
-    for day in all_days[-14:]:
-        trimmed_data.append({
-            "date": day.get("date"),
-            "averageHR": day.get("stats", {}).get("averageHR"),
-            "steps": day.get("stats", {}).get("totalSteps"),
-            "calories": day.get("stats", {}).get("totalKilocalories"),
-            "distance_m": day.get("stats", {}).get("totalDistanceMeters"),
-        })
-except Exception as e:
-    trimmed_data = []
-    print(f"Error loading daily_summary.json: {e}")
+trimmed_data = []
+for day in all_days[-14:]:
+    trimmed_data.append({
+        "date": day.get("date"),
+        "averageHR": day.get("stats", {}).get("averageHR"),
+        "steps": day.get("stats", {}).get("totalSteps"),
+        "calories": day.get("stats", {}).get("totalKilocalories"),
+        "distance_m": day.get("stats", {}).get("totalDistanceMeters"),
+    })
 
-# ---- STEP 2 START: Load Recent Activity Data ----
+# Load last 30 activities
 try:
-    with open("recent_activities.json", "r") as f:
+    with open("run_history.json", "r") as f:
         activity_data = json.load(f)
-except Exception as e:
+except:
     activity_data = []
-    print(f"Error loading recent_activities.json: {e}")
-# ---- STEP 2 END ----
 
-# ---- Assistant Loop ----
+activity_data = activity_data[-30:]
+
 print("MCP Assistant ready. Type 'exit' to quit.")
 while True:
     user_input = input("You: ")
     if user_input.strip().lower() == "exit":
         break
 
-    system_message = "You are an intelligent endurance coach and data analyst. Use Garmin data to help evaluate training and health."
+    system_message = "You are a highly intelligent training assistant that analyses Garmin health and activity data to advise on fitness, fatigue, and performance trends."
 
     user_prompt = f"""
 Here is my Garmin wellness summary from the past 14 days:
 {json.dumps(trimmed_data, indent=2)}
 
-Here is a list of my last 30 recorded workouts:
+Here are my last 30 recorded workouts:
 {json.dumps(activity_data, indent=2)}
 
 Now answer this question:
