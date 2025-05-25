@@ -1,8 +1,15 @@
 import json
 import datetime
+import os
+from dotenv import load_dotenv
 from garminconnect import Garmin
 
-client = Garmin("your_email", "your_password")
+# Load credentials from .env file
+load_dotenv()
+EMAIL = os.getenv("GARMIN_EMAIL")
+PASSWORD = os.getenv("GARMIN_PASSWORD")
+
+client = Garmin(EMAIL, PASSWORD)
 client.login()
 
 today = datetime.date.today()
@@ -18,7 +25,8 @@ for i in range(days):
             "date": iso,
             "stats": stats
         })
-    except:
+    except Exception as e:
+        print(f"Failed to fetch for {iso}: {e}")
         continue
 
 # Merge with existing wellness data
@@ -34,3 +42,5 @@ combined.sort(key=lambda x: x["date"])
 
 with open("wellness_history.json", "w") as f:
     json.dump(combined, f, indent=2)
+
+print(f"Fetched and saved {len(summaries)} new day(s) of wellness data.")
