@@ -12,22 +12,35 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 try:
     with open("daily_summary.json", "r") as f:
         all_days = json.load(f)
-        recent_data = all_days[-14:]
-except Exception as e:
-    recent_data = []
-    print(f"Error loading daily_summary.json: {e}")
 
+    # Trim down the data to just key metrics
+    trimmed_data = []
+    for day in all_days[-14:]:
+        trimmed_data.append({
+            "date": day.get("date"),
+            "averageHR": day.get("stats", {}).get("averageHR"),
+            "steps": day.get("stats", {}).get("totalSteps"),
+            "calories": day.get("stats", {}).get("totalKilocalories"),
+            "distance_m": day.get("stats", {}).get("totalDistanceMeters"),
+        })
+
+except Exception as e:
+    trimmed_data = []
+    print(f"Error loading or trimming daily_summary.json: {e}")
+
+# Start interaction loop
 print("MCP Assistant ready. Type 'exit' to quit.")
 while True:
     user_input = input("You: ")
     if user_input.strip().lower() == "exit":
         break
 
-    system_message = "You are an intelligent endurance coach and data analyst. Use Garmin data to answer fitness and recovery questions."
+    system_message = "You are an intelligent endurance coach and data analyst. Use the Garmin data provided to answer questions."
 
     user_prompt = f"""
-Garmin daily summary for the past 14 days:
-{json.dumps(recent_data, indent=2)}
+Garmin summary of the last 14 days:
+
+{json.dumps(trimmed_data, indent=2)}
 
 Now answer this question:
 {user_input}
