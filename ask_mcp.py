@@ -1,65 +1,49 @@
+# ask_mcp.py
+
+from openai import OpenAI
 import os
 import json
-from openai import OpenAI
-from dotenv import load_dotenv
 
+# Load environment variables
+from dotenv import load_dotenv
 load_dotenv()
+
+# Set up OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Load last 14 days of wellness data
+# Load trend data
 try:
-    with open("wellness_history.json", "r") as f:
-        all_days = json.load(f)
-except:
-    all_days = []
+    with open("trend_profile.json") as f:
+        trend_data = json.load(f)
+except FileNotFoundError:
+    trend_data = {}
+    print("⚠️ No trend_profile.json found. Responses may be limited.")
 
-trimmed_data = []
-for day in all_days[-14:]:
-    trimmed_data.append({
-        "date": day.get("date"),
-        "averageHR": day.get("stats", {}).get("averageHR"),
-        "steps": day.get("stats", {}).get("totalSteps"),
-        "calories": day.get("stats", {}).get("totalKilocalories"),
-        "distance_m": day.get("stats", {}).get("totalDistanceMeters"),
-    })
-
-# Load last 30 activities
-try:
-    with open("run_history.json", "r") as f:
-        activity_data = json.load(f)
-except:
-    activity_data = []
-
-activity_data = activity_data[-30:]
+# Build system prompt
+system_prompt = (
+    "You are a highly contextual running and wellness assistant named MCP.\n"
+    "Use the user's fitness trends below to answer questions with insight.\n\n"
+    f"Here is the current trend profile:\n{json.dumps(trend_data, indent=2)}\n"
+)
 
 print("MCP Assistant ready. Type 'exit' to quit.")
+
+# Main loop
 while True:
     user_input = input("You: ")
-    if user_input.strip().lower() == "exit":
+    if user_input.lower() in ["exit", "quit"]:
         break
-
-    system_message = "You are a highly intelligent training assistant that analyses Garmin health and activity data to advise on fitness, fatigue, and performance trends."
-
-    user_prompt = f"""
-Here is my Garmin wellness summary from the past 14 days:
-{json.dumps(trimmed_data, indent=2)}
-
-Here are my last 30 recorded workouts:
-{json.dumps(activity_data, indent=2)}
-
-Now answer this question:
-{user_input}
-"""
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": user_prompt}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_input}
             ]
         )
         reply = response.choices[0].message.content.strip()
-        print(f"MCP: {reply}\n")
+        print("MCP:", reply)
+
     except Exception as e:
-        print(f"MCP Error: {e}")
+        print("MCP Error:", e)
