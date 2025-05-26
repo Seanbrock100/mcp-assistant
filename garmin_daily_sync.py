@@ -1,48 +1,65 @@
+# garmin_daily_sync.py
+
 from garminconnect import Garmin
+from garminconnect import (
+    GarminConnectAuthenticationError,
+    GarminConnectConnectionError,
+    GarminConnectTooManyRequestsError
+)
 from dotenv import load_dotenv
-import datetime
 import os
 import json
-from pathlib import Path
+import datetime
 
-# Load credentials from .env
+# Load credentials
 load_dotenv()
 EMAIL = os.getenv("GARMIN_EMAIL")
 PASSWORD = os.getenv("GARMIN_PASSWORD")
-
-# Create date-stamped filename
-today = datetime.date.today()
-today_str = today.strftime("%Y-%m-%d")
-output_dir = Path("data")
-output_dir.mkdir(parents=True, exist_ok=True)
-output_file = output_dir / f"{today_str}.json"
 
 try:
     client = Garmin(EMAIL, PASSWORD)
     client.login()
 
-    print(f"Fetching Garmin data for {today_str}...")
+    today = datetime.date.today().isoformat()
 
-    # Get core data
-    activities = client.get_activities(0, 5)
-    stats = client.get_stats(today)
+    # Fetch sleep, stress, resting HR, body battery
     sleep = client.get_sleep_data(today)
-    steps = client.get_steps_data(today)
-    heart_rate = client.get_heart_rates(today)
+    stress = client.get_stress_data(today)
+    resting_hr = client.get_heart_rates(today)
+    body_battery = client.get_body_battery(today)
+    stats = client.get_stats(today)
 
-    data = {
-        "date": today_str,
-        "summary": stats,
+    daily = {
+        "date": today,
         "sleep": sleep,
-        "steps": steps,
-        "heart_rate": heart_rate,
-        "activities": activities
+        "stress": stress,
+        "resting_hr": resting_hr,
+        "body_battery": body_battery,
+        "summary": stats
     }
 
-    with open(output_file, "w") as f:
+    # Append to file
+    file_path = "wellness_history.json"
+    if os.path.exists(file_path):
+        with open(file_path) as f:
+            data = json.load(f)
+    else:
+        data = []
+
+    # Remove existing entry for today if it exists
+    data = [d for d in data if d["date"] != today]
+    data.append(daily)
+
+    with open(file_path, "w") as f:
         json.dump(data, f, indent=2)
 
-    print(f"Data saved to {output_file}")
+    print("✅ Synced sleep, stress, and HR data.")
 
+except GarminConnectAuthenticationError:
+    print("❌ Authentication failed.")
+except GarminConnectConnectionError:
+    print("❌ Connection error.")
+except GarminConnectTooManyRequestsError:
+    print("❌ Rate limit hit.")
 except Exception as e:
-    print(f"Failed to fetch Garmin data: {e}")
+    print(f"❌ Unexpected error: {e}")
