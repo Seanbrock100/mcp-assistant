@@ -10,4 +10,5 @@ def run_jarvis():
     notify_user(advice)
 
 if __name__ == "__main__":
-    run_jarvis()
+    run_jarvis()  # Run your daily assistant logic first
+    app.run(host="0.0.0.0", port=5000)  # Start the Flask webhook listener
